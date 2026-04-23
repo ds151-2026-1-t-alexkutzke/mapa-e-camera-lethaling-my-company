@@ -1,16 +1,37 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { View, Text, TextInput, TouchableOpacity, StyleSheet, Image, Alert } from 'react-native';
-// TODO: Importar expo-camera, expo-location e async-storage
+import { CameraView, useCameraPermissions } from 'expo-camera'
+import * as Location from 'expo-location';
+import { Segredo } from './mapa';
+import AsyncStorage from '@react-native-async-storage/async-storage'
+// TODO: Importar expo-camera, expo-location e async-storage --done
 
 export default function NovoSegredoScreen() {
   const [texto, setTexto] = useState('');
   const [fotoUri, setFotoUri] = useState<string | null>(null);
   const [isCameraOpen, setIsCameraOpen] = useState(false);
 
+  const cameraRef = useRef<any>(null);
+  const [cameraPermission, requestCameraPermission] = useCameraPermissions();
+
+  useEffect(() => {
+    (async () => {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert("erro", "permissão de localização não dada")
+        return;
+      }
+    })();
+  }, [])
+
   // Lógica do botão de abrir câmera
   const handleAbrirCamera = async () => {
     // TODO 1: Pedir permissão da câmera
     // Se permitido, abrir a câmera mudando o estado:
+    if (!cameraPermission?.granted) {
+      const permission = await requestCameraPermission();
+      if (!permission.granted) return;
+    }
     setIsCameraOpen(true);
   };
 
@@ -18,7 +39,10 @@ export default function NovoSegredoScreen() {
   const handleTirarFoto = async () => {
     // TODO 2: Usar o cameraRef para tirar a foto
     // Salvar a URI no estado setFotoUri e fechar a câmera
-    Alert.alert("Dica", "Implemente a captura da foto aqui!");
+    if (cameraRef.current) {
+      const photodata = await cameraRef.current.takePictureAsync();
+      setFotoUri(photodata.uri);
+    }
     setIsCameraOpen(false);
   };
 
@@ -30,9 +54,29 @@ export default function NovoSegredoScreen() {
     }
 
     // TODO 3: Buscar a localização atual do usuário (GPS)
+    let currentPos = await Location.getCurrentPositionAsync();
 
     // TODO 4: Montar o objeto do segredo e salvar no AsyncStorage
-    Alert.alert("Sucesso", "Implemente o AsyncStorage aqui!");
+
+    let segredo: Segredo = {
+      id: Date.now().toString(),
+      texto: texto,
+      fotoUri: fotoUri,
+      latitude: currentPos.coords.latitude,
+      longitude: currentPos.coords.longitude
+    }
+
+    const storeData = async (segredo: Segredo) => {
+      try {
+        const jsonValue = JSON.stringify(segredo);
+        await AsyncStorage.setItem(segredo.id, jsonValue);
+      } catch (e) {
+        console.warn(e);
+      }
+    }
+    await storeData(segredo)
+
+    Alert.alert("Sucesso", ":)");
 
     setTexto('');
     setFotoUri(null);
@@ -41,9 +85,8 @@ export default function NovoSegredoScreen() {
   // --- RENDERIZAÇÃO DA CÂMERA EM TELA CHEIA ---
   if (isCameraOpen) {
     return (
-      <View style={styles.container}>
+      <CameraView style={styles.container} ref={cameraRef}>
         <Text style={{ color: '#fff', marginTop: 50, textAlign: 'center' }}>
-          {/* TODO: Substituir esta View pelo componente <CameraView> */}
           (Câmera deve aparecer aqui)
         </Text>
 
@@ -55,7 +98,7 @@ export default function NovoSegredoScreen() {
             <Text style={styles.btnText}>Cancelar</Text>
           </TouchableOpacity>
         </View>
-      </View>
+      </CameraView>
     );
   }
 
