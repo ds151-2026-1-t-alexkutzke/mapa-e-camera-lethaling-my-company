@@ -21,7 +21,7 @@ export default function NovoSegredoScreen() {
         Alert.alert("erro", "permissão de localização não dada")
         return;
       }
-    })
+    })();
   }, [])
 
   // Lógica do botão de abrir câmera
@@ -58,14 +58,8 @@ export default function NovoSegredoScreen() {
 
     // TODO 4: Montar o objeto do segredo e salvar no AsyncStorage
 
-    let biggestId = 0;
-    let allKeys = await (await AsyncStorage.getAllKeys()).forEach((key) => {
-      let currentId = Number.parseInt(key);
-      if (currentId > biggestId) biggestId = currentId;
-    })
-
     let segredo: Segredo = {
-      id: (biggestId + 1).toString(),
+      id: Date.now().toString(),
       texto: texto,
       fotoUri: fotoUri,
       latitude: currentPos.coords.latitude,
@@ -80,7 +74,7 @@ export default function NovoSegredoScreen() {
         console.warn(e);
       }
     }
-    storeData(segredo)
+    await storeData(segredo)
 
     Alert.alert("Sucesso", ":)");
 
