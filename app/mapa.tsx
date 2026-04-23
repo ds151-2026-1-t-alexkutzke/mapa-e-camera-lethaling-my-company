@@ -1,10 +1,12 @@
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useState, useEffect } from 'react';
-import { View, StyleSheet, Text } from 'react-native';
+import { View, StyleSheet, Text, Alert } from 'react-native';
 import MapView, { Marker, Callout } from 'react-native-maps';
+import * as Location from 'expo-location'
 // TODO: Importar AsyncStorage
 
 // Define o formato que o segredo terá
-interface Segredo {
+export interface Segredo {
   id: string;
   texto: string;
   fotoUri: string | null;
@@ -14,20 +16,52 @@ interface Segredo {
 
 export default function MapaScreen() {
   const [segredos, setSegredos] = useState<Segredo[]>([]);
+  const [location, setLocation] = useState<Location.LocationObjectCoords | null>(null);
+
 
   // Carrega os dados toda vez que a tela é aberta
   useEffect(() => {
     carregarSegredos();
+
+
+    (async () => {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== "granted") {
+        Alert.alert("erro", "permissão de localização não dada")
+        return;
+      }
+      const currentLocation = await Location.getCurrentPositionAsync({});
+      setLocation(currentLocation.coords);
+    })
+
   }, []);
 
   const carregarSegredos = async () => {
     // TODO 5: Ler a lista de segredos do AsyncStorage, fazer JSON.parse() e colocar no estado setSegredos.
+    const getData = async (key: string): Promise<Segredo> => {
+      const JsonValue = await AsyncStorage.getItem(key);
+      return JSON.parse(JsonValue!) as Segredo;
+    }
+
+    let segredos: Segredo[] = [];
+    (await AsyncStorage.getAllKeys()).forEach(async (key) => {
+      segredos.push(await getData(key))
+    })
+    setSegredos(segredos);
   };
 
   return (
     <View style={styles.container}>
       {/* TODO 6: O MapView precisa receber o initialRegion ou region */}
-      <MapView style={styles.map}>
+      <MapView
+        style={styles.map}
+        initialRegion={{
+          latitude: location?.latitude,
+          longitude: location?.longitude,
+          longitudeDelta: 0.01,
+          latitudeDelta: 0.01
+        }}
+      >
 
         {/* TODO 7: Fazer um map() no array de segredos para criar os Markers */}
         {segredos.map((segredo) => (
